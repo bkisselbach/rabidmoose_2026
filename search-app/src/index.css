@@ -1,0 +1,1264 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* Full dark canvas -- RabidMoose visual refresh, full-rework pass (see
+   presentation/rabidmoose-visual-refresh-plan.md §0.A). First pass at this rebrand kept the
+   original light "cool neutral marketplace" canvas and only swapped the accent color; live
+   feedback was that this read as monochrome yellow and didn't actually match the mockup that
+   inspired it. This is the reversal: the canvas itself goes dark now, not just the accent.
+   SUPERSEDED AGAIN 2026-08-16 (home-hero-marketplace-toolbar-plan.md): the first dark pass invented
+   "Astral Indigo" as the canvas from the BRAND_COLORS table's *written* role ("Deep Void Background
+   & Contrast Framing"), but the mockup's actual rendered code was never checked against it -- and it
+   doesn't use that hex anywhere. Checked directly this session (`rabidmoose-tcg/src/App.tsx`,
+   `Navbar.tsx`, `TcgMarketplace.tsx`): every real surface is plain Tailwind slate --
+   `bg-slate-950` (page canvas + sunken controls), `bg-slate-900` (raised cards/panels),
+   `border-slate-800` (every hairline), `text-slate-400` (muted text). Same "written guideline vs.
+   actual code disagree" problem the wordmark color hit earlier in this doc, this time for the
+   canvas itself -- and this time going with the code, not the brand table, since color match was
+   the explicit ask. `.product-stage` (below) is still the one deliberate exception -- real card
+   photography needs a light mount to read correctly. */
+:root {
+  --background: 229 84% 5%;
+  --foreground: 210 40% 98%;
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
+  --border: 217 33% 17%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+
+  /* Thunderbolt Amber #FBBF24 -- primary CTA, price, active state. Dark foreground (not white):
+     amber is a light, high-luminance color, so white text on it fails contrast the way it never
+     did on the old red. Unchanged by the dark-canvas reversal -- amber-on-dark is if anything a
+     closer match to the mockup than amber-on-light ever was. */
+  --primary: 43 96% 56%;
+  --primary-foreground: 240 10% 8%;
+  --accent: 43 96% 56%;
+  --accent-foreground: 240 10% 8%;
+  /* Rabid Neon Violet #A855F7 -- the second accent, for the jobs amber shouldn't also carry:
+     active-nav pill, secondary prices/actions, the Pokédex-side surfaces. White foreground here
+     reads fine -- violet is dark/saturated enough that amber's contrast problem doesn't apply. */
+  --accent-secondary: 271 91% 65%;
+  --accent-secondary-foreground: 0 0% 100%;
+  /* Brighter than the light-mode value (was 0 72% 45%) -- a mid-saturation red loses too much
+     contrast against Astral Indigo at that lightness. */
+  --destructive: 0 78% 62%;
+
+  /* The positive counterpart to --destructive, added 2026-08-19 by the visual-consistency audit.
+     The palette had a "this went wrong" colour and no "this went right" one, so the first surface
+     that needed a gain figure (the Set Collector's market movement) reached for a raw
+     `text-emerald-600 dark:text-emerald-400` -- the last raw Tailwind hue in the tree AND the only
+     `dark:` variant in an app that has no light mode, so a visitor whose OS was set to light got
+     the DARK green painted on the dark canvas. One token instead, at the same lightness
+     --destructive was bumped to for this background, so a gain and a loss read as a matched pair
+     rather than as two unrelated colours that happen to sit in the same sentence. */
+  --success: 152 62% 52%;
+
+  /* Coveo brand blue -- reserved for the CoveoChip provenance markers so "served by the platform"
+     reads as one consistent visual voice, distinct from the site's own palette. Bumped lighter
+     (was 214 85% 45%) for the same dark-background contrast reason as --destructive; on the light
+     canvas this only had to read against near-white, now it has to hold up against Astral Indigo
+     AND stay visually distinct from --accent-secondary, which is also a cool saturated color on
+     the same background now -- a pairing that used to get separation for free from light mode and
+     no longer does. Re-check this specifically once both are live (see plan §7). */
+  --coveo: 214 90% 62%;
+  --coveo-foreground: 240 10% 8%;
+
+  /* One radius knob. `--radius` is the panel corner (Card, popovers, sheets, any bounded
+     surface); controls one step tighter. Both are mapped into Tailwind below, so `rounded-md`
+     and `rounded-lg` resolve to these rather than to Tailwind's stock values -- previously this
+     variable was declared here and read by nothing, while the components spelled radius five
+     different ways (md, lg, xl, 2xl and a raw 3px).
+     0.5rem -> 0.75rem 2026-08-16: the mockup's real corners run rounded-xl (12px) on almost every
+     control (`rabidmoose-tcg/src/components/Navbar.tsx`, `TcgMarketplace.tsx`) -- 8px read
+     noticeably squarer side by side. Hero/toolbar OUTER panels use Tailwind's stock rounded-2xl/
+     rounded-3xl directly (16px/24px) rather than a third custom step; only the two-step
+     control/card scale changes here. */
+  --radius: 0.75rem;
+
+  /* Exactly two elevation levels site-wide: a hairline lift for surfaces at rest, and a real
+     shadow for things that float above the page (popovers, sheets, drawers). Anything else is a
+     one-off and should be replaced by one of these. Pure black rather than the old
+     `hsl(240 10% 8%)` -- that was already near-black, but on a light canvas; against Astral Indigo
+     a shadow needs more opacity to still read as recession instead of vanishing into the
+     background, since --card is now LIGHTER than --background (surfaces lift by getting brighter
+     in dark mode, not by casting a visible shadow the way they did in light mode) -- the shadow
+     here is a secondary depth cue on top of that, not the primary one. */
+  --elevation-rest: 0 2px 10px -4px hsl(0 0% 0% / 0.35);
+  --elevation-float: 0 12px 32px -8px hsl(0 0% 0% / 0.5);
+
+  /* The photography scrim, named (2026-08-17, site-wide styling unification). Four surfaces were
+     spelling `hsl(240 10% 8%)` inline -- the Badge default, the sheet backdrop, the PDP's zoom
+     pill and the Holo Studio's 3D pill -- each with its own copy of the same comment explaining
+     why it is hardcoded rather than `bg-foreground`: chrome that sits ON photography (or dims the
+     page behind a drawer) must stay dark regardless of theme, and `--foreground` inverted under
+     the dark canvas. One token now carries both the value and that reasoning; it deliberately
+     does NOT track the theme's own foreground/background pair. */
+  --scrim: 240 10% 8%;
+  /* One step darker, added 2026-08-18 by the CSS/theming audit. SiteFooter stacks two pinned-dark
+     bands -- the link band and the legal bar under it -- and both were spelled as raw arbitrary
+     values (`bg-[hsl(244_45%_9%)]` / `bg-[hsl(244_45%_5%)]`) in an indigo that existed nowhere else
+     in the palette, so the app carried THREE unrelated near-blacks: the canvas, the scrim, and the
+     footer's own. The band itself now uses `--scrim` and only this second step is new, which puts
+     every pinned-dark surface on one hue. Same contract as `--scrim`: deliberately does NOT track
+     the theme's foreground/background pair. */
+  --scrim-deep: 240 10% 4%;
+
+  /* The violet edge glow, factored out of `.hero-border-glow` (2026-08-17) once a second surface
+     wanted it -- the home page's Trending / Recently Purchased panels. Two shadow layers, not one:
+     a hard 1px spread that reads as a lit BORDER, and a soft 24px bloom that reads as the glow off
+     it. Both are needed; the ring alone is just a coloured border and the bloom alone has no edge.
+
+     A token rather than a copy in each class, because the pair has to stay identical across every
+     surface that uses it -- the moment the hero's ring and a panel's ring differ by an alpha step,
+     they stop reading as the same treatment. Also note this is a shadow LIST, so it composes: any
+     consumer can prepend an elevation shadow and get both.
+
+     Split into two halves 2026-08-17 for a ring-only card variant, and re-joined 2026-08-18 once
+     the CSS audit found that variant had no call sites left: every surface that glows takes both
+     layers, so this is one token again rather than three of which two were used once each. */
+  --glow-edge: 0 0 0 1px hsl(var(--accent-secondary) / 0.3), 0 0 24px 1px hsl(var(--accent-secondary) / 0.2);
+
+  /* The flat violet plate colour, tokenised 2026-08-17 the moment a second and third surface wanted
+     it: the home hero, then Trending Now and Recently Purchased ("apply that same background color
+     to trending now and recently sold"). Exactly the same argument as `--glow-edge` above -- these
+     three are meant to read as ONE material, and the day one of them drifts an alpha step they stop
+     doing that.
+
+     It is deliberately the SEMI-TRANSPARENT violet rather than the composited result, because every
+     consumer paints it over `--card` and the composite is what you actually see (~#34265A today).
+     Storing the blend instead would freeze it against one surface colour and quietly break if a
+     future consumer sat on anything else. The alpha itself is inherited, not chosen: it is what the
+     hero's old gradient peaked at in its top-left corner, which is the colour the request named. */
+  --violet-fill: hsl(var(--accent-secondary) / 0.24);
+}
+
+/* The palette above is the source of truth; this exposes it to Tailwind as semantic colour
+   utilities (`bg-primary`, `text-muted-foreground`, `border-border`) instead of the
+   arbitrary-value spelling this app used to use. Same pixels, but a class can now only name
+   a colour that exists in the palette -- which is what keeps a one-off `text-slate-500` from
+   quietly appearing. `inline` means utilities carry the resolved value, so opacity modifiers
+   (`bg-primary/10`) still work.
+
+   The type scale is closed on purpose. Below `xs` the app previously invented six different
+   sizes (9px, 10px, 11px, 0.6rem, 0.65rem, 0.95rem) for what is visually one role -- the small
+   uppercase label -- so there is now exactly one step below `xs` (`2xs`) and everything that
+   used to hand-pick a pixel value sits on it. Anything smaller is unreadable anyway. */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-border: hsl(var(--border));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-secondary: hsl(var(--accent-secondary));
+  --color-accent-secondary-foreground: hsl(var(--accent-secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-success: hsl(var(--success));
+  --color-coveo: hsl(var(--coveo));
+  /* Paired with `--color-coveo` the same way `primary`/`primary-foreground` are, so a filled
+     Coveo button says `text-coveo-foreground` instead of a raw `text-white` that no token owns. */
+  --color-coveo-foreground: hsl(var(--coveo-foreground));
+
+  /* The radius scale, now FULLY closed over `--radius` (2026-08-17, site-wide styling
+     unification). Previously only md/lg were wired to the knob while xl/2xl/3xl fell through to
+     Tailwind's stock values -- which HAPPENED to line up (stock xl = 0.75rem = --radius exactly),
+     an accident one future --radius change would have silently broken, splitting the app's
+     corners into two unrelated systems. Every step is now derived, same pixels as before:
+
+       md   10px  controls (buttons, inputs, selects, small chips)
+       lg   12px  row cards, facet shells, inner art boxes
+       xl   12px  same value as lg BY CONSTRUCTION -- the tree spells both, and they must agree
+       2xl  16px  grid tiles (ProductCard, SpeciesTile, NewsCard) and full-width panels
+       3xl  24px  hero marquees only
+       sm   keeps Tailwind's default (badges)
+
+     One knob, five named roles; a surface picks its ROLE, never a pixel value. */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-xl: var(--radius);
+  --radius-2xl: calc(var(--radius) + 0.25rem);
+  --radius-3xl: calc(var(--radius) + 0.75rem);
+
+  /* See `--scrim` in :root -- exposed as `bg-scrim`/`text-scrim` so the four photography-chrome
+     call sites name the token instead of each holding a raw hsl copy. */
+  --color-scrim: hsl(var(--scrim));
+  --color-scrim-deep: hsl(var(--scrim-deep));
+
+  /* The two elevation levels as real utilities (`shadow-rest` / `shadow-float`). Components
+     previously spelled these `shadow-[var(--elevation-rest)]`, which is verbose enough that the
+     sticky header had quietly invented a third, hand-tuned shadow instead of using either. */
+  --shadow-rest: var(--elevation-rest);
+  --shadow-float: var(--elevation-float);
+}
+
+/* Not `inline`, so `--text-2xs` is emitted as a real custom property and plain CSS rules
+   (`.eyebrow`) can sit on the same step the utility class uses. */
+@theme {
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  /* Motion tokens -- the whole app runs on two curves and one default duration.
+     `--ease-smooth` is the house curve (fast start, long soft landing) applied as the DEFAULT for
+     every `transition-*` utility via the two `--default-transition-*` tokens, so a bare
+     `transition-colors` anywhere in the tree now eases identically instead of falling back to
+     Tailwind's stock 150ms. `--ease-out-expo` is the entrance curve for things that arrive
+     (panels, slides, rises) -- more dramatic deceleration than the hover curve on purpose.
+     Emitted as real custom properties (non-inline @theme) so the keyframe rules below can share
+     them. */
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --default-transition-duration: 200ms;
+  --default-transition-timing-function: var(--ease-smooth);
+}
+
+/* The default border colour, so a bare `border` utility draws the hairline without naming a colour.
+   It MUST be in `@layer base`. Unlayered, this rule beat every Tailwind border-colour utility in
+   the app -- layer order outranks specificity, so a `*` selector with no layer won against
+   `.border-coveo\/25` -- and every single `border-*` class was silently inert. Measured before the
+   fix: `border-coveo/25` on the Ask panel computed to rgb(223,223,226), the neutral grey, and
+   `border-transparent` on the header nav items painted a grey underline that was supposed to appear
+   only on the active tab. */
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+}
+
+body {
+  @apply text-foreground antialiased;
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  /* Corner glow removed (2026-08-17, direct instruction: "ditch the glow from the corners, keep
+     it simple repeating pokeballs as the background") -- the two radial gradients that used to
+     sit here are gone; the canvas is just the flat `--background` colour, and the pokeball
+     texture below (`body::before`) is the only thing that reads as "background" now. Note this
+     leaves `--page-glow` / the Pokemon PDP's per-species colour override (CharacterDetailPage.tsx)
+     with nothing left to tint -- that hook is still set on body but no longer paints anything. */
+  background: hsl(var(--background));
+  background-attachment: fixed;
+}
+
+/* Site-wide texture: a small repeating pokeball motif in outline (2026-08-17, direct request --
+   "the hero's pokeball background moved to the entire website background. swap them"). This layer
+   and the hero's used to hold each other's motif; the hero's line lattice was dropped outright a
+   moment later ("remove the grid background of the hero, keep the subtle color gradients"), so the
+   pokeball is now the app's only repeating texture and the hero is gradient-only.
+
+   DRAWN, not sourced: it is three primitives (ring, seam, button), so an asset would buy nothing
+   and cost a request. Line art only -- no fills -- because a filled pokeball at this alpha reads as
+   a blob. The seam deliberately STOPS at the button rather than running behind it, which is what
+   makes an outline read as a pokeball instead of a circle with a line through it.
+
+   MASK, not background-image, and that is the load-bearing choice. An SVG data URI cannot read CSS
+   custom properties, so a coloured one would bake the violet in and desync the moment the palette
+   moves. As a mask the SVG contributes only its alpha and `background-color` supplies the colour
+   -- so this recolours from --accent-secondary like everything else, and its strength is one alpha
+   value to tune rather than a re-encoded data URI. The URI is held in a custom property so the
+   prefixed and unprefixed mask properties can't drift apart.
+
+   The tile carries TWO balls, at opposite corners of a 64px square, rather than one centred ball.
+   One-per-tile tiles into a rigid square grid that reads as a table; the offset pair makes each
+   row land half a step over from the one above, which is the standard half-drop and is why it
+   reads as texture rather than as a grid.
+
+   `body::before` rather than a fourth entry in `body { background: ... }`: that shorthand is
+   already a tuned three-gradient stack, and a separate fixed layer composites over it while
+   staying independently tunable or removable.
+
+   `z-index: -1` paints it above the body's own background (the glow stack) but below all page
+   content, so it reads as texture ON the wash rather than buried under it. `fixed` matches the
+   glows' own `background-attachment: fixed` -- otherwise the texture would slide against a wash
+   that doesn't move.
+
+   Alpha is a step below the 0.16 this motif carried in the hero: there it sat on one card-sized
+   panel that a reader looks AT, here it runs behind every page of the site, and a mark repeated
+   across a whole viewport accumulates presence that the same mark in a box does not. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  --poke-ball-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.1' stroke-linecap='round'%3E%3Ccircle cx='16' cy='16' r='9'/%3E%3Cpath d='M7 16h6.4M18.6 16h6.4'/%3E%3Ccircle cx='16' cy='16' r='2.6'/%3E%3Ccircle cx='48' cy='48' r='9'/%3E%3Cpath d='M39 48h6.4M50.6 48h6.4'/%3E%3Ccircle cx='48' cy='48' r='2.6'/%3E%3C/g%3E%3C/svg%3E");
+  background-color: hsl(var(--accent-secondary) / 0.12);
+  -webkit-mask-image: var(--poke-ball-mask);
+  mask-image: var(--poke-ball-mask);
+  -webkit-mask-size: 64px 64px;
+  mask-size: 64px 64px;
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+}
+
+/* One family, two jobs. Display weight + negative tracking is what makes Inter read as a
+   deliberate headline face rather than body copy scaled up -- and it drops a whole font request.
+   Sizes stay with the components; the scale there is already within the target (h1 at text-3xl,
+   only the hero larger). */
+/* IN `@layer base`, and that is load-bearing -- the same trap the `*` border-colour rule above
+   was already fixed for (2026-08-18, site-wide CSS/theming audit). Unlayered, this rule beat every
+   Tailwind font-weight and letter-spacing utility in the app, because layer order outranks
+   specificity and utilities live in `@layer utilities`. Measured before the fix: EVERY heading in
+   the tree computed to 700 no matter what it said -- the home hero's `font-extrabold` h1 (meant to
+   be 800) and the product/species card names' `font-semibold` (meant to be 600) alike -- so the app
+   had exactly one heading weight while the source claimed three, and neither tsc nor a lint could
+   see it. Layered, a declared weight wins and a heading that declares nothing still inherits 700
+   from here. */
+@layer base {
+  h1, h2, h3, .font-display {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+  }
+}
+
+/* Bold/dimensional wordmark treatment for the RabidMoose logotype -- skewed heavy weight with a
+   stacked hard-shadow bevel per word, amber for "Rabid" and violet for "Moose". Chosen from three
+   directions explored in a design canvas (split-color / all-amber / white-dual-shadow); this is
+   "Option 1". Kept as classes rather than inline styles since the header is the first consumer but
+   not necessarily the last. */
+.wordmark {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  transform: skewX(-8deg);
+  display: inline-block;
+}
+.wordmark-rabid {
+  color: #FBBF24;
+  text-shadow: 1px 1px 0 #92400e, 2px 2px 0 #1a1030;
+}
+.wordmark-moose {
+  color: #C084FC;
+  text-shadow: 1px 1px 0 #6b21a8, 2px 2px 0 #1a1030;
+}
+
+/* The small uppercase label, in one place. Section kickers, facet headings, spec-list terms and
+   metadata captions were all reinventing this inline with three different weights and two
+   trackings; they all use this class now. Sits on the `2xs` step of the scale.
+
+   In `@layer components` on purpose: Tailwind's `utilities` layer is declared after it, so
+   `class="eyebrow text-coveo"` recolours the label as expected. Unlayered, this rule would
+   outrank every utility (unlayered CSS beats layered CSS) and silently win those overrides. */
+@layer components {
+  /* The page's horizontal frame, in one place. Header, footer, every page shell and the three
+     home-page sections each spelled this out as `mx-auto max-w-[1600px] px-4` -- twelve copies of
+     a number that has to agree or the header's contents visibly fail to line up with the page's.
+     Vertical padding stays at the call site, since that legitimately differs per section. */
+  .page-container {
+    /* `width: 100%` is load-bearing, not decorative. The page shells are flex columns (so the
+       footer can be pushed to the bottom on short pages), and a flex item with an `auto` cross-axis
+       margin loses `align-self: stretch` -- it sizes to its CONTENT and then centres that. Measured:
+       the 404 page's <main> came out 480px wide inside a 1440px viewport, and /search sized itself
+       to its widest row and overflowed horizontally. A definite width restores stretch, and the auto
+       margins go back to doing only what they are here for -- centring once max-width bites. */
+    width: 100%;
+    margin-inline: auto;
+    /* 1800, not 1600 (2026-08-17, direct instruction: "wider without being full screen"). Every
+       home-page surface is fluid -- both browse grids, and the rails, which use a fixed card width
+       and simply fit one more card per row -- so the extra width goes into content, not into
+       stretching anything. Deliberately still a cap and not a vw fraction: on a 1920 display this
+       leaves a ~60px gutter each side, so the page still reads as a framed column rather than
+       running to the screen edges, and screens narrower than 1800 are unaffected. */
+    max-width: 1800px;
+    padding-inline: 1rem;
+  }
+
+  .eyebrow {
+    font-size: var(--text-2xs);
+    line-height: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Touch target floor for the app's deliberately THIN controls -- breadcrumb crumbs, pagination
+     arrows, eyebrow-scale inline CTAs. Measured at 375px, those render 14-21px tall against a 44px
+     platform guideline, so a thumb misses them.
+
+     Raising their real height would coarsen the type: these are quiet by design and a 44px-tall
+     breadcrumb reads as a toolbar. So the hit box grows and the layout does not -- an invisible
+     child overlay, centred on the control, at least 44px tall. Clicks land on it and bubble to the
+     control that owns it.
+
+     `pointer: coarse` is the precise gate, not a width breakpoint: this is about fingers, not
+     screen size, so it applies to a phone and a touchscreen laptop alike and never to a mouse
+     (where overlapping 44px boxes in a tight breadcrumb row would start stealing each other's
+     clicks). */
+  .tap-safe {
+    position: relative;
+  }
+  @media (pointer: coarse) {
+    .tap-safe::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      translate: 0 -50%;
+      height: 100%;
+      min-height: 44px;
+    }
+  }
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.25);
+}
+
+/* ============================================================================
+   MOTION VOCABULARY (2026-08-18, motion-system-plan.md M4)
+
+   Every @keyframes in the app, in one place. They used to be scattered across
+   ~370 lines of this file, interleaved with gradient and material rules, so
+   there was no single screen you could read to learn what this app's motion
+   actually is. The consuming CLASSES stay next to the components they belong
+   to, further down -- only the raw keyframes moved, and none of them changed.
+
+   The rules that govern anything added here:
+     - Two curves only. `--ease-smooth` for interaction (a thing responding to
+       you), `--ease-out-expo` for arrival (a thing showing up). A third curve
+       needs its reason written into the rule.
+     - Animate ONCE on entry, or move slowly and forever. Nothing loops fast.
+       `shimmer` and `poke-spin` are the two sanctioned fast loops, and both are
+       loading states -- a loader that does not repeat is not a loader.
+     - Nothing bounces. No overshoot easings, anywhere.
+     - Reduced motion is not opt-in: the blanket rule at the foot of this file
+       collapses every one of these, and anything drawn in JS gates itself
+       (see lib/confettiBurst.ts).
+   ============================================================================ */
+
+/* -- Loading ---------------------------------------------------------------- */
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes poke-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* The Card Consultant's badge while its answer is in flight (`MooseMark breathing`). A THIRD
+   sanctioned loop, admitted under this section's second rule rather than as an exception to it:
+   the rule allows "animate once on entry, OR move slowly and forever", and at 2.4s per cycle with
+   a 4% scale swing this is the slow branch, not a third fast spinner. It reads as breathing, not
+   blinking. Deliberately NOT the `animate-pulse`-style opacity flash the caret comment rejects --
+   the mark stays fully opaque throughout, because a face that fades in and out looks broken
+   rather than busy. */
+@keyframes moose-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+/* The typing caret on a streaming answer (AskPokedex, VaultGeneratedAnswer).
+   `step-end` in the consuming class, not a curve: a caret is on or off, and
+   easing it produces the soft breathing pulse this replaced (Tailwind's stock
+   `animate-pulse`, which was also the last non-house curve left in the app). */
+@keyframes caret-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+/* -- Arrival ---------------------------------------------------------------- */
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes slide-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes slide-out-right { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes slide-in-left { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes slide-out-left { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.96) translateY(-2px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes pop-out { from { opacity: 1; transform: scale(1) translateY(0); } to { opacity: 0; transform: scale(0.97) translateY(-2px); } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes page-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes page-enter-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* -- Pokémon flavor (motion-system-plan.md M3) ------------------------------ */
+
+/* The catch. Fires on the pokeball icon inside an Add-to-cart button, on the
+   button the shopper actually pressed -- before this, the ONLY feedback for
+   adding a card was the header cart icon bumping, all the way across the
+   viewport from the click.
+
+   Three decaying rotations and then still, which is the shape of the games'
+   own ball-wobble: it is a settle, not a shake. `rotate`, as its own property
+   rather than a composite transform, so it composes with the button's
+   `.pressable` scale instead of clobbering it -- the icon can be mid-wobble
+   while the button is mid-press, and both have to survive. */
+@keyframes poke-wobble {
+  0%   { rotate: 0deg; }
+  20%  { rotate: -14deg; }
+  40%  { rotate: 11deg; }
+  60%  { rotate: -7deg; }
+  80%  { rotate: 3deg; }
+  100% { rotate: 0deg; }
+}
+
+/* The header cart acknowledging a catch. Replaces a `setTimeout` +
+   `transition-all` scale toggle that was the app's only JS-driven animation --
+   and, per MASTER-STATUS, the specific reason CartNavButton was the one
+   component left out of the `useCoveoState` migration (its subscribe callback
+   carried a `setBump` side effect, so it didn't fit the pure state-mirror
+   shape). As a keyframe replayed off a React key, the side effect is gone.
+
+   Scale up and back with one small tilt at the peak, so it reads as the same
+   family as poke-wobble above rather than as a generic pop. */
+@keyframes cart-catch {
+  0%   { scale: 1;    rotate: 0deg; }
+  35%  { scale: 1.11; rotate: -6deg; }
+  70%  { scale: 1.03; rotate: 3deg; }
+  100% { scale: 1;    rotate: 0deg; }
+}
+
+/* Selecting a type facet or chip blooms once in that type's OWN colour, passed
+   in as `--type-flash-color` from lib/typeColors.ts -- the app already had a
+   full type→colour map driving static swatches and drove exactly zero motion
+   with it. This is the cheapest way to make the app's motion specifically
+   Pokémon rather than generically playful: nothing new is invented, an
+   existing data file simply reaches the motion system.
+
+   Box-shadow, not a background flash: the chip's own fill already carries its
+   selected state, and repainting it mid-transition fights that. A bloom
+   spreading outward and fading reads as confirmation without touching the
+   control's resting appearance. Falls back to `--primary` so a chip with no
+   type still flashes something on-palette.
+
+   `--type-flash-color` is a whole COLOUR, not an HSL triplet, which is the one thing to get right
+   if this is ever extended: every other colour hook in this file takes `H S% L%` and gets wrapped
+   in `hsl()` at the point of use, but lib/typeColors.ts stores hexes (`#EE8130` for Fire), and
+   `hsl(#EE8130)` is simply invalid -- it would drop the whole declaration and the flash would
+   silently never appear. Hence `color-mix` for the alpha instead of `hsl(... / 0.55)`. */
+@keyframes type-flash {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--type-flash-color, hsl(var(--primary))) 55%, transparent); }
+  to   { box-shadow: 0 0 0 10px transparent; }
+}
+
+/* A species' stat bars filling from zero, like the games' stat screen. Replaces
+   a `transition-all duration-700` that fired on mount -- which meant it also
+   fired on any unrelated re-render that changed a bar's width, and animated
+   every other property of the bar along the way. The real width is passed as
+   `--stat-width` so the keyframe can end on the actual value. */
+@keyframes stat-grow {
+  from { width: 0; }
+  to   { width: var(--stat-width, 100%); }
+}
+
+/* -- Ambient (slow, forever) ------------------------------------------------ */
+
+@keyframes studio-sweep {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+
+/* ========================= end motion vocabulary ========================== */
+
+/* THE interactive-card hover, one gesture for every clickable tile in the app (2026-08-17,
+   site-wide styling unification). Before this pass there were two competing hover languages:
+   product/character cards used this class (hairline brighten, rest shadow, deliberately no lift)
+   while news cards and Pokédex species tiles each inlined
+   `transition-all duration-300 hover:-translate-y-0.5 hover:shadow-float` -- a lift to the FLOAT
+   shadow, which is the panel's gesture (.panel-border-glow), not a tile's.
+   Unified in the middle: every tile now lifts 2px (the half of the old recipe that read as fun)
+   but stays on the REST shadow (the half that kept tiles from impersonating panels). News/vault
+   tiles trade an oversized hover shadow for the hairline brighten; product cards gain the lift.
+
+   `translate`, not `transform`: several tiles animate their own inner art with transform
+   utilities, and the separate property composes with all of them instead of clobbering.
+   Panels are untouched -- their grammar stays rest->float with no lift (.panel-border-glow,
+   FacetShell). */
+.card-hover {
+  transition:
+    border-color 200ms var(--ease-smooth),
+    box-shadow 200ms var(--ease-smooth),
+    translate 200ms var(--ease-smooth);
+}
+.card-hover:hover {
+  border-color: hsl(var(--foreground) / 0.28);
+  box-shadow: var(--elevation-rest);
+  translate: 0 -2px;
+}
+
+/* THE press, one gesture for every clickable in the app that is not a tile
+   (2026-08-18, motion-system-plan.md M1).
+
+   Before this the app had exactly one press state -- `active:scale-[0.98]`,
+   spelled inline in ui/button.tsx's `buttonVariants` -- and it reached 11 of
+   roughly 100 clickables. The other 89 are raw `<button>` elements across 43
+   files (every facet value, page number, view toggle, query pill, typeahead
+   suggestion, mega-menu tile, quantity stepper), and all of them were
+   hover-only: on a touchscreen, where there IS no hover, most of this app
+   acknowledged a tap with nothing at all until the data came back.
+
+   `scale`, NOT a composite `transform`, for the same reason `.card-hover` uses
+   `translate`: several of these controls carry their own transform-based
+   effects, and separate properties compose instead of clobbering. The
+   Add-to-cart button is the case that proves it -- its pokeball icon runs
+   `poke-wobble` on `rotate` while the button itself is mid-press, and both have
+   to survive.
+
+   120ms, faster than the app's 200ms default. A press is confirmation of
+   something that already happened; anything slower reads as lag when you click
+   four facet values in a row. The scale is also shallower than the old
+   button-only 0.98 -- 0.97 on a 28px facet chip is roughly the same number of
+   pixels of movement as 0.98 on a 40px button, and the chips are where this
+   class mostly lands.
+
+   Controls only -- the card TILES (ProductCard, NewsCard, SpeciesTile,
+   PokedexCard) deliberately do not take it. A whole card scaling under a click
+   is a heavier, different gesture, and those tiles already own a hover language
+   (hairline brighten + 2px lift) that a scale would fight. That line falls out
+   of the rollout for free: every card root is an `<a>` or a `<div>` with a
+   stretched link, and every consumer of this class is a real `<button>`. A pill
+   that happens to borrow `.card-hover` for its border treatment (the trending
+   query pills, the Vault's shuffle button) IS a control and does take it -- the
+   two classes compose cleanly because one animates `translate` and the other
+   `scale`. */
+.pressable {
+  transition: scale 120ms var(--ease-smooth);
+}
+.pressable:active {
+  scale: 0.97;
+}
+
+/* The product name, marked as a link WITHOUT an icon (2026-08-17, direct request: "remove the book
+   icon next to the pokemon name too, it doesn't make sense. i do need a way to show that clicking
+   the name opens the PDP").
+
+   A dotted underline is the oldest in-text link convention there is, and it is the one affordance
+   that costs no layout: these names already truncate at rail width, so anything sitting BESIDE the
+   text (the book icon, an arrow) eats from the name itself. An underline sits under it for free.
+
+   Dotted at rest, solid on hover: at rest it has to read as "this is a link" without competing with
+   the card's own hierarchy across a grid of twenty; the solid state is the confirmation once the
+   pointer is on it. `text-decoration-style` is NOT animatable, so only the colour transitions -- the
+   dotted-to-solid flip is deliberately instant rather than a botched half-transition.
+
+   Keyed on `.card-hover:hover`, the class BOTH card roots already carry, rather than on Tailwind's
+   `group` marker: the hover target is the whole card, because the whole card is the link. The name
+   itself is plain text sitting UNDER the stretched <a> overlay -- it is styled as a link but is not
+   one, which is what keeps a card to exactly one tab stop and one accessible name instead of two
+   focusable links to the same PDP. */
+.card-title-link {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: hsl(var(--muted-foreground) / 0.7);
+  text-underline-offset: 4px;
+  transition: color 200ms var(--ease-smooth), text-decoration-color 200ms var(--ease-smooth);
+}
+.card-hover:hover .card-title-link {
+  color: hsl(var(--primary));
+  text-decoration-style: solid;
+  text-decoration-color: hsl(var(--primary));
+}
+
+/* Neutral "light box" stage for product photography. The card scans are shot on white, so the
+   stage is a clean near-white and the faint vignette gives it depth without tinting the image;
+   the drop-shadow lifts the card off the stage so flat white-on-white edges stay readable. Now
+   cool-toned to match the canvas -- the warm stop underneath the art was the last warm surface
+   left on the page. */
+.product-stage {
+  background: radial-gradient(120% 120% at 50% 15%, hsl(0 0% 100%) 0%, hsl(240 6% 96%) 100%);
+  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.7);
+}
+.product-stage img {
+  filter: drop-shadow(0 2px 4px hsl(240 10% 8% / 0.14));
+}
+
+/* The round dark control that sits ON photography -- zoom/close buttons over card scans and the
+   Holo Studio stage. Four call sites (zoomable-image x2, the lightbox, the studio) each spelled
+   `rounded-full bg-black/50 p-2 text-white hover:bg-black/70` before this class existed
+   (2026-08-17, site-wide styling unification). Plain black rather than --scrim: over a photo the
+   job is neutral dimming, and any hue -- even scrim's faint blue -- can clash with the artwork. */
+.photo-control {
+  border-radius: 9999px;
+  padding: 0.5rem;
+  background-color: hsl(0 0% 0% / 0.5);
+  color: hsl(0 0% 100%);
+  transition: background-color 200ms var(--ease-smooth);
+}
+.photo-control:hover {
+  background-color: hsl(0 0% 0% / 0.7);
+}
+
+/* The immersive modal backdrop (Holo Studio, Rip Pack, the image lightbox) -- full-viewport
+   experiences where the page behind should recede completely. One value instead of the three that
+   had drifted (black/80 + blur, black/85 + blur, black/80 plain); the drawer Sheet's own lighter
+   scrim (.sheet-overlay below) is deliberately separate -- a drawer dims the page, a stage
+   replaces it. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-color: hsl(0 0% 0% / 0.8);
+  backdrop-filter: blur(4px);
+}
+
+/* The "dark holographic pack" material -- the Rip Pack wrapper, the Holo Studio's sleeve back,
+   and the merch section's sleeve mockup all painted this same indigo->slate->violet diagonal with
+   an amber border, in three inline copies whose ambers had already drifted (`border-primary/60`
+   on one, `border-amber-400/60` -- the same pixels, spelled off-palette -- on the other two).
+   One material, one rule (2026-08-17, site-wide styling unification). The gradient stops stay
+   raw hexes on purpose: this is night-sky packaging art, not themed chrome, and must not shift
+   when the palette does. Border WIDTH and radius stay at the call site -- a 288px pack and a
+   208px sleeve legitimately frame differently. */
+.pack-stage {
+  border-color: hsl(var(--primary) / 0.6);
+  background-image: linear-gradient(to bottom right, #1e1b4b, #0f172a, #3b0764);
+}
+
+/* Horizontal product rails: the scrollbar is navigation chrome the arrows and swipe already
+   provide, so it stays hidden without disabling scrolling. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--border)) 37%, hsl(var(--muted)) 63%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* Same shimmer, tuned for the ONE light mount in a dark app: `.product-stage`, the white radial
+   backdrop card photography sits on (see its rule above and the palette note at the top of this
+   file for why it's a deliberate exception). `--muted` is a dark navy, so a stock `.skeleton`
+   inside the stage reads as a heavy black slab on white rather than as an absent image -- louder
+   than the artwork it stands in for, which defeats the point. Neutral alpha instead of palette
+   tokens so it tracks whatever the mount is, and stays correct if the stage ever lightens. */
+.skeleton-on-light {
+  background: linear-gradient(
+    90deg,
+    hsl(240 6% 50% / 0.1) 25%,
+    hsl(240 6% 50% / 0.19) 37%,
+    hsl(240 6% 50% / 0.1) 63%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* Home hero background: a soft diagonal fade of the same violet, not a flat fill (2026-08-18,
+   direct request -- "the background we used on the heros... is just straight purple. can we make
+   it a little more visually appealing, maybe a fade or gradient. nothing dramatic"). This reverses
+   the 2026-08-17 "make it simple, one flat colour" instruction on purpose, so the history is worth
+   keeping straight: photo layer + flat overlay -> two-accent diagonal gradient -> flat violet fill
+   -> this. See HeroBackdrop in ConsultantHero.tsx for the two-flat-layer step this replaced.
+
+   Still ONE colour, not a new second stop -- "nothing dramatic" ruled out reintroducing the old
+   amber second stop, which was cut specifically because two flat accent fills over one another
+   reads as a third colour. This fades the same hue from a touch stronger to a touch softer along
+   the diagonal, `--violet-fill` itself sitting at the midpoint.
+
+   THE ALPHA IS STILL THE POINT, and it is why both endpoints are spelled as
+   `hsl(var(--accent-secondary) / N)` rather than a `color-mix()` boost off `--violet-fill`. A first
+   pass tried exactly that -- `color-mix(in hsl, var(--violet-fill) 115%, transparent)` -- to push
+   past the token's own 0.24 alpha without inventing a new number; it silently produced NO
+   background at all. Per the CSS Color 5 spec a `color-mix()` percentage outside [0%, 100%] makes
+   the whole function invalid, which invalidates the surrounding `linear-gradient()`, which drops
+   the whole `background-image` declaration -- caught in verification (computed style read back as
+   `background-image: none`), not shipped. So the strong end is a fresh alpha computed off
+   `--accent-secondary` directly (0.30, roughly 1.25x the token's 0.24) and the soft end likewise
+   (0.16, roughly 0.65x) -- both still track the hue token, just not through `--violet-fill`'s own
+   fixed alpha.
+
+   The radius/clip is on this layer, not a parent -- the same constraint every previous hero
+   background hit: the hero box holds the search box's typeahead dropdown, which must overflow its
+   bottom edge, so `overflow: hidden` can't go on any ancestor that dropdown depends on.
+
+   2026-08-18, second pass: the diagonal alone still read as a flat plate, because 0.30 -> 0.16 of
+   one hue stretched across the full width is a shallower ramp than the eye registers as a gradient
+   at all. So the depth now comes from a soft radial BLOOM in the upper-left -- behind the card
+   cluster, reading as light falling on the scans -- composited over a slightly flattened version
+   of the same diagonal. Still one hue and still no second accent, which is the constraint the old
+   amber stop was cut for; what changed is the SHAPE of the falloff, round rather than a straight
+   band, which is what makes it legible as shading at all.
+
+   The two layers' alphas are picked so the composite lands where the flat version already sat,
+   not brighter: alpha over alpha is `a1 + a2 * (1 - a1)`, so the bloom's 0.14 over the diagonal's
+   0.22 gives ~0.33 at the hot corner (was 0.30) and the far corner reads 0.14 (was 0.16). The
+   visible change is the falloff, not the weight.
+
+   The bloom's outer stop is spelled `hsl(var(--accent-secondary) / 0)`, NOT the `transparent`
+   keyword: `transparent` is transparent BLACK, and a gradient ramping to it interpolates through
+   grey, which would dirty the midtones of a fill whose whole job is to stay one clean hue. */
+.poke-hero-bg-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      120% 95% at 18% 12%,
+      hsl(var(--accent-secondary) / 0.14) 0%,
+      hsl(var(--accent-secondary) / 0) 62%
+    ),
+    linear-gradient(
+      135deg,
+      hsl(var(--accent-secondary) / 0.22) 0%,
+      var(--violet-fill) 45%,
+      hsl(var(--accent-secondary) / 0.14) 100%
+    );
+}
+
+/* The same plate treatment on a Card that already has its own opaque fill. This keeps the hero's
+   FIRST 2026-08-18 fade (the plain 0.30 -> 0.16 diagonal) and deliberately does NOT take the hero's
+   later corner bloom: that bloom is placed for a tall plate with a card cluster in its upper-left,
+   and on a short wide row it would land as an off-centre bright patch with nothing underneath it to
+   justify the light.
+
+   THE CALL-SITE LIST HERE WAS STALE AND SAID THE OPPOSITE OF THE CODE (corrected 2026-08-19,
+   visual-consistency audit). It named "the home page's Trending Now / Recently Purchased pair
+   (2026-08-17, direct request)" -- and `5df7aca` moved the plate OFF that pair the very next day,
+   onto Shop by set / Browse the Pokédex. So for a day this comment pointed at the two panels in the
+   app that specifically do NOT take it, which is what made the home page look like unresolved drift
+   when it is a resolved decision.
+
+   THE RULE THAT REVERSAL FOUND, written down so it stops being rediscovered: the violet plate goes
+   under SUNKEN content, never under raised content. Every surface that wears it holds `bg-background`
+   controls or flat data -- BrowseTiles' pills, the Vault hero's search box and its `bg-background`
+   spotlight, DeckCoverage's type bars, /advisor's title block, and (as `.panel-violet-bloom`) the
+   home and /search Consultant plates' search boxes. The one home panel that holds `bg-card` PRODUCT
+   TILES -- `HomeCardRail` -- is the one with no plate, because a tinted plate under a row of raised
+   `bg-card` tiles puts two lit surfaces on top of each other and the tiles stop reading as raised.
+   That is why the two home families look different, and it is the correct difference.
+
+   `background-image`, not `background-color`, and that is the load-bearing difference from
+   `.poke-hero-bg-layer`. The hero applies the tint on a transparent layer OVER a `bg-card` box, so
+   there it can paint directly; a Card has to keep its own `bg-card` underneath, and a plain
+   `background-color` here would REPLACE that rather than sit on it. A translucent panel is not a
+   cosmetic difference on this page: the site-wide pokeball texture lives on `body::before`, so
+   anything that lets the page show through would print pokeballs inside the panel. Painting the
+   tint as a background IMAGE layers it over the element's own background colour and composites to
+   exactly what the hero shows. */
+.panel-violet-fill {
+  background-image: linear-gradient(
+    135deg,
+    hsl(var(--accent-secondary) / 0.3) 0%,
+    var(--violet-fill) 45%,
+    hsl(var(--accent-secondary) / 0.16) 100%
+  );
+}
+
+/* The hero's CURRENT treatment -- corner bloom over a flattened diagonal, see
+   `.poke-hero-bg-layer` above for how the two layers' alphas were picked -- on a Card that has its
+   own opaque fill. Currently /search's Card Consultant panel (2026-08-18, direct request: "add
+   that same treatment to the card consultant on the marketplace url /search").
+
+   Sibling of `.panel-violet-fill`, not a replacement for it: that class deliberately stayed on the
+   plain diagonal for the short wide Trending / Recently Purchased rows, where an upper-left bloom
+   has nothing underneath it to justify the light. This one is for tall plates whose visual anchor
+   really is in that corner -- the hero's card cluster, this panel's Card Consultant lockup.
+
+   `background-image`, not `background-color`, for the same load-bearing reason spelled out on
+   `.panel-violet-fill`: the Card must keep its own `bg-card` underneath, because the site-wide
+   pokeball texture lives on `body::before` and any panel that lets the page show through prints
+   pokeballs inside itself. */
+.panel-violet-bloom {
+  background-image:
+    radial-gradient(
+      120% 95% at 18% 12%,
+      hsl(var(--accent-secondary) / 0.14) 0%,
+      hsl(var(--accent-secondary) / 0) 62%
+    ),
+    linear-gradient(
+      135deg,
+      hsl(var(--accent-secondary) / 0.22) 0%,
+      var(--violet-fill) 45%,
+      hsl(var(--accent-secondary) / 0.14) 100%
+    );
+}
+
+/* Sheet (slide-in panel) + Select + Popover open/close animations, driven by Radix's
+   data-state attribute. No tailwindcss-animate plugin in this Tailwind v4 (CSS-first) setup,
+   so these are plain keyframes rather than animate-in/animate-out utility classes. */
+.sheet-overlay[data-state='open'] { animation: fade-in 240ms var(--ease-out-expo); }
+.sheet-overlay[data-state='closed'] { animation: fade-out 200ms ease-in both; }
+
+/* Hero variants: one-shot entrance for content that swaps in (rotation panels, live previews). */
+.fade-in-panel { animation: fade-in 400ms var(--ease-out-expo); }
+
+.sheet-panel-right[data-state='open'] { animation: slide-in-right 280ms var(--ease-out-expo); }
+.sheet-panel-right[data-state='closed'] { animation: slide-out-right 200ms ease-in both; }
+.sheet-panel-left[data-state='open'] { animation: slide-in-left 280ms var(--ease-out-expo); }
+.sheet-panel-left[data-state='closed'] { animation: slide-out-left 200ms ease-in both; }
+
+/* Popovers get a matched exit: Radix (Select, the Demo-Mode gear) holds the node mounted until
+   the closed-state animation finishes, and NavMenu mirrors the same data-state contract manually
+   (SiteHeader keeps the panel rendered ~140ms after close). SearchBox's suggestion panels carry
+   this class WITHOUT data-state on purpose -- typeahead should vanish instantly, not linger. */
+.popover-content[data-state='open'] { animation: pop-in 180ms var(--ease-out-expo); }
+.popover-content[data-state='closed'] { animation: pop-out 140ms ease-in both; }
+
+/* Home page motion. The rule everywhere: animate once on entry, or move slowly and forever --
+   nothing loops fast, nothing bounces. All of it stops under prefers-reduced-motion. */
+.rise-in { animation: rise-in 500ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* The route transition (2026-08-17, site-wide styling unification): every page's <main> arrives
+   with one short fade-and-rise instead of popping in. Entrance-ONLY on purpose -- exit animations
+   in a Suspense/Routes tree require holding the outgoing page mounted (AnimatePresence-style
+   bookkeeping this app doesn't carry), and the entrance alone reads as the transition. Keyed to
+   component MOUNT, which is exactly route-change granularity: within-route param navigation
+   (species -> species on /pokedex/:name, card -> card on /card/:id) keeps the page mounted and
+   deliberately does NOT replay -- those swaps have their own in-place content transitions, and
+   re-running a page entrance on them would read as a full reload.
+
+   Gentler than `.rise-in` (8px, not 14px): this moves the entire viewport's content, and the home
+   page's per-section stagger stays the one place the bigger gesture lives. HomePage itself does
+   NOT carry this class -- its four sections choreograph their own entrance through `.deal-in` on
+   the section ramp, and stacking a second fade under a stagger dims its first frames for nothing.
+   `both` so a page that Suspense-mounts mid-frame holds invisible until its own animation starts.
+
+   That sentence was FALSE from 2026-08-17 to 2026-08-18 and worth flagging as a pattern rather
+   than a one-off: the stagger it describes was planned, the comment was written as though it had
+   shipped, and what actually landed was a single `.rise-in` on one of the four sections. The home
+   page therefore spent a day as the only page in the app with neither a route transition nor a
+   section entrance, with a comment in this file asserting the opposite. See
+   presentation/motion-system-plan.md (gap G3). */
+.page-enter { animation: page-enter 360ms var(--ease-out-expo) both; }
+
+/* page-enter's `transform` makes its element a containing block for any `position: fixed`
+   descendant for the animation's duration -- fine everywhere else, but ProductDetailPage nests a
+   fixed mobile add-to-cart bar inside its animated <main>, which would otherwise resolve `bottom-0`
+   against <main>'s box and jump to the real viewport bottom once the animation ends. Opacity-only
+   variant for that one page keeps the same fade without creating a containing block. */
+.page-enter-fade { animation: page-enter-fade 360ms var(--ease-out-expo) both; }
+
+/* Hero border glow: a fixed, subtle Rabid Neon Violet halo (see index.css's own :root comment for
+   that name), like a card's foil catching light rather than a UI focus ring -- direct request to
+   drop the pulse this first tried and hold one static value. Box-shadow, not a border-color
+   change: the hero box has no overflow-hidden on it (the search box's typeahead dropdown depends
+   on that), so a soft shadow is free to bloom past the rounded corners the way a glow should. */
+.hero-border-glow {
+  box-shadow: var(--glow-edge);
+}
+
+/* The same glow on a surface that also carries elevation -- the home page's Trending Now and
+   Recently Purchased panels (2026-08-17, direct request: "the border and glowing effect on the
+   hero on the trending now and recently purchased boxes below").
+
+   This exists instead of just adding `hero-border-glow` to those panels, and the reason is a real
+   collision rather than tidiness: those panels already animate `shadow-rest -> shadow-float` on
+   hover, and `box-shadow` is a SINGLE property. Two classes both setting it means one silently
+   wins -- the glow would have killed the hover lift, or the hover lift would have killed the glow
+   at exactly the moment the pointer arrived. Composing both into one shadow list is the only way
+   to keep the two effects independent.
+
+   Elevation first, glow second: shadow layers paint first-on-top, so the violet ring stays the
+   outermost thing on the edge rather than being sat on by the black drop shadow.
+
+   The transition lives here rather than as `transition-shadow` at the call site, so the class is
+   self-contained -- a consumer can't get the glow without its hover behaviour, or vice versa. */
+.panel-border-glow {
+  box-shadow: var(--elevation-rest), var(--glow-edge);
+  transition: box-shadow 300ms var(--ease-smooth);
+}
+.panel-border-glow:hover {
+  box-shadow: var(--elevation-float), var(--glow-edge);
+}
+
+/* The route-transition loader: the site's own pokeball, turning once slowly (2026-08-17, part of
+   the "make it feel Pokemon" pass). It replaces a generic grey `.skeleton` disc -- the one moment
+   the whole viewport is empty was the one moment the app said nothing about what it is.
+
+   REUSES THE MOTIF, NOT THE ASSET. The site-wide texture (`body::before`) tiles TWO balls at
+   opposite corners of a 64px square for its half-drop, which is wrong for a spinner; this is the
+   same three primitives (ring, seam, button) drawn once and centred. Same reasoning as that layer
+   for why it is a MASK: an SVG data URI cannot read CSS custom properties, so a coloured one would
+   bake the brand in and desync the moment the palette moves. As a mask it contributes only alpha
+   and `background-color` supplies the colour, so this tracks --primary like everything else.
+
+   The seam stops at the button rather than running behind it -- that is what makes an outline read
+   as a pokeball instead of a circle with a line through it.
+
+   Looping is the one place this file's "nothing loops fast" rule permits a loop at all: a loader
+   that does not repeat is not a loader. It is kept slow (1.5s, linear so there is no lurch at the
+   seam) and it is the only infinite animation in the app besides the skeleton shimmer -- and the
+   blanket prefers-reduced-motion rule collapses it to a static mark. `.skeleton`'s shimmer stays
+   the treatment for CONTENT placeholders; this is only for a route with nothing on screen yet. */
+/* The motif itself, factored out of `.pokeball-loader` (2026-08-18, motion-system-plan.md M3) once
+   a second surface wanted it: the Add-to-cart button's "caught it" state. One mask declaration, two
+   consumers, so the ball in a button and the ball in the route loader can never drift into being
+   two slightly different drawings. `currentColor`, not `--primary`, because as a button icon it has
+   to invert with the button (amber fill, dark foreground) exactly the way the lucide icon it
+   replaced did; the loader re-pins it to --primary below, which is what it was before. */
+.pokeball-mark {
+  --poke-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='16' cy='16' r='13'/%3E%3Cpath d='M3 16h7.6M21.4 16h7.6'/%3E%3Ccircle cx='16' cy='16' r='4'/%3E%3C/g%3E%3C/svg%3E");
+  display: inline-block;
+  background-color: currentColor;
+  -webkit-mask-image: var(--poke-mask);
+  mask-image: var(--poke-mask);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+/* The catch. One wobble, then still -- see `@keyframes poke-wobble` for why it decays rather than
+   shakes. Deliberately NOT `infinite`: this is a confirmation, and a ball that keeps rattling reads
+   as "still catching", which is a different (and untrue) message. */
+.pokeball-mark-wobble {
+  animation: poke-wobble 620ms var(--ease-smooth) both;
+}
+
+/* The streaming-answer caret (AskPokedex, VaultGeneratedAnswer). `step-end`, so it is hard on and
+   hard off with nothing in between -- see `@keyframes caret-blink`. 1.06s rather than a round
+   second because a caret ticking in exact time with anything else on screen starts to read as a
+   metronome. */
+.caret-blink {
+  animation: caret-blink 1.06s step-end infinite;
+}
+
+/* A species' six stat bars filling in, top row first -- see components/pokedex/StatBars.tsx for
+   what this replaced and why a transition could not do the job. Its own delay ramp rather than
+   `.deal-in`'s: both classes set `animation`, so an element cannot wear both, and six rows a
+   couple of pixels apart want a slower, more deliberate count-up (60ms steps) than twenty tiles
+   rippling across a grid do. */
+.stat-grow {
+  animation: stat-grow 520ms var(--ease-out-expo) both;
+  animation-delay: min(calc(var(--deal-index, 0) * 60ms), 300ms);
+}
+
+/* The overlay a type facet value paints over itself the moment it is selected -- see
+   components/TypeFlash.tsx for why it is a separate absolutely-positioned element rather than a
+   class on the button itself (a class toggle cannot replay, and remounting the button would throw
+   away keyboard focus mid-click). 420ms: long enough to see a colour, short enough to be finished
+   before the facet's own results come back and redraw the row. */
+.type-flash {
+  animation: type-flash 420ms var(--ease-out-expo) both;
+}
+
+/* The header cart's half of the same gesture -- see components/CartNavButton.tsx for the replay
+   mechanism (a React key, not a class toggle) and for why this replaced a setTimeout. Shorter than
+   the ball's wobble on purpose: this one fires in peripheral vision, at the far corner of the
+   viewport from wherever the shopper is actually looking, so it has to register and get out of the
+   way rather than hold attention. */
+.cart-catch {
+  animation: cart-catch 420ms var(--ease-smooth) both;
+}
+
+/* Worn WITH `.pokeball-mark` (see App.tsx), not instead of it -- this class is only the loader's
+   own size, colour and spin. Plain CSS has no `composes`, and duplicating the mask block here is
+   exactly the drift the factoring was meant to prevent. */
+.pokeball-loader {
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: hsl(var(--primary));
+  animation: poke-spin 1.5s linear infinite;
+}
+
+/* The consultant's badge while it is composing (`MooseMark breathing` -- GeminiConsultantAnswer's
+   in-flight state). `--ease-smooth` rather than `linear`: the pokeball spins mechanically because
+   it is a spinner, but a breath has to slow at the top and bottom of its travel or it reads as a
+   throb. `transform-origin: center` is explicit -- the mark is wider than it is tall once the
+   antlers are counted, and the default origin on an inline-flex box is not where the badge circle
+   is. */
+.moose-breathing {
+  animation: moose-breathe 2.4s var(--ease-smooth) infinite;
+  transform-origin: center;
+}
+
+/* Results "deal in" -- the existing `.rise-in` entrance, staggered per tile so a grid arrives like
+   a hand of cards being dealt rather than as one block (2026-08-17).
+
+   No new keyframe: this is `rise-in` with a delay, set per tile from `--deal-index`. The delay is
+   CAPPED, and the cap is the whole reason this is safe to put on a results page -- `index * 30ms`
+   on a 20-tile page would make the last card wait 570ms after the first, and on a longer rail it
+   would run into seconds. `min()` holds the total under ~200ms no matter how many tiles render, so
+   the effect is a ripple rather than a queue.
+
+   `both` keeps the pre-animation state applied during the delay: without it a tile would paint at
+   full opacity, then jump to the start of its own animation. The whole grid must be invisible until
+   its own turn.
+
+   STEP AND CAP ARE OVERRIDABLE (2026-08-18, motion-system-plan.md M2), and the reason is the home
+   page rather than any grid. Rolling this class out to the eleven collections that never had an
+   entrance also gave the home page's four SECTIONS one, and a section stagger is a different
+   physical size from a tile stagger: 28ms between two adjacent tiles in a grid reads as a ripple
+   across one object, while 28ms between the hero and the row under it -- a full viewport apart --
+   reads as nothing at all, just four things appearing at once. The step has to scale with the
+   distance the eye travels between items.
+
+   Overrides rather than a second class, because the alternative was a `.home-section-in` that
+   duplicated this rule with two numbers changed, and the app would then have had two stagger
+   vocabularies that drift. The defaults are the tile numbers, so every existing call site and every
+   new grid gets the right behaviour by writing nothing. */
+.deal-in {
+  animation: rise-in 420ms var(--ease-out-expo) both;
+  animation-delay: min(calc(var(--deal-index, 0) * var(--deal-step, 28ms)), var(--deal-cap, 200ms));
+}
+
+/* Holofoil sheen over a holo card's art (2026-08-17). See components/HoloFoil.tsx for who gets it
+   and why -- the short version is that it is gated on the indexed `cardrarity`, so about one card
+   in five shines and a Common never does.
+
+   GATED ON `hover: hover` AND `pointer: fine`, which is the whole touch story. A phone has no
+   hover, so it never runs the effect, and there is no way for a tap to strand a half-lit frame the
+   way a hover-based effect usually can on touch. The element still mounts everywhere -- it just
+   paints nothing outside this query -- so the DOM does not differ between environments.
+
+   OPACITY IS THE ONLY THING THAT MOVES. There is no keyframe here and nothing loops: the layer is
+   transparent at rest, fades in under the pointer, and fades back out. That is deliberate against
+   this file's own policy ("nothing loops fast, nothing bounces") and against the precedent of the
+   hero glow, which tried a pulse and was asked to hold a static value instead.
+
+   The gradients follow the pointer through --holo-x/--holo-y, written from JS one frame at a time.
+   Both have fallbacks so the layer is centred and sane before the first pointer event.
+
+   NO NEW COLOURS: white for the glare, then the two accents the theme already defines. The bands
+   are what read as "foil" rather than "gloss", and keeping them to amber+violet means the effect
+   cannot drift the palette. `color-dodge` lets the card's own artwork drive the result -- dark ink
+   stays dark, bright foil areas bloom -- which is what makes it look like light on a surface
+   instead of a translucent sticker laid on top. */
+.holo-foil {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .holo-foil {
+    background-image:
+      radial-gradient(
+        circle at var(--holo-x, 50%) var(--holo-y, 50%),
+        hsl(0 0% 100% / 0.34) 0%,
+        hsl(0 0% 100% / 0.1) 20%,
+        transparent 48%
+      ),
+      repeating-linear-gradient(
+        105deg,
+        hsl(var(--primary) / 0.1) 0%,
+        hsl(var(--accent-secondary) / 0.1) 5%,
+        transparent 10%,
+        transparent 17%
+      );
+    background-blend-mode: screen;
+    /* `soft-light` rather than `color-dodge`, tuned against a screenshot pair. Dodge is the
+       textbook foil blend and it is genuinely too much here: at any alpha that produced visible
+       bands it also lifted the card's dark ink and threw a magenta cast over the whole scan, which
+       is the "over the top" the request explicitly ruled out. Soft-light keeps the artwork's own
+       values and only bends the light, so the sheen reads as a surface catching a highlight rather
+       than as a coloured film laid over the card. Alphas came down with it (0.22 -> 0.10 on the
+       bands, 0.5 -> 0.34 on the glare). */
+    mix-blend-mode: soft-light;
+    transition: opacity 260ms var(--ease-smooth);
+  }
+  /* `.group` is the card root (ProductCard) or the stage (PDP) -- the same marker the art's own
+     hover scale already uses, so the two read as one gesture rather than two effects that happen
+     to fire together. */
+  .group:hover .holo-foil {
+    opacity: 1;
+  }
+}
+
+/* Rip Pack (flavor-round-plan.md item 22) -- two ports from the rabidmoose-tcg mockup's own
+   index.css, adapted rather than copied:
+
+   `.holo-rainbow` is the mockup's 115deg magenta->cyan->yellow->violet foil band, with one fix the
+   mockup needed and never made: an explicit background-size, so background-position travel is
+   actually visible (the mockup left it at 100% and its glare movement was near-invisible). Item 23
+   (the 3D Holo Studio) reuses this same class for its rainbow foil style -- that is why it lives
+   here rather than inline in the pack modal.
+ */
+.holo-rainbow {
+  background-image: linear-gradient(
+    115deg,
+    transparent 18%,
+    hsl(300 100% 60% / 0.32) 34%,
+    hsl(185 100% 55% / 0.32) 46%,
+    hsl(55 100% 60% / 0.28) 56%,
+    hsl(271 76% 53% / 0.32) 68%,
+    transparent 82%
+  );
+  background-size: 200% 200%;
+}
+
+/* 3D Holo Studio (flavor-round-plan.md item 23). The three CSS-3D utilities the mockup's
+   HoloCard3D relied on (Tailwind has no stock classes for these), plus its gold foil band --
+   same background-size fix .holo-rainbow above got, so the glare travel is visible.
+
+   `.studio-sweep` is the touch/no-hover stand-in for pointer-tracked glare: a slow diagonal
+   background-position drift on the foil layer. Slow-and-forever is this file's own sanctioned
+   motion category, and the reduced-motion blanket below collapses it like everything else. */
+.perspective-1000 { perspective: 1000px; }
+.transform-style-3d { transform-style: preserve-3d; }
+.backface-hidden { backface-visibility: hidden; }
+
+/* The last two foil styles (2026-08-18, CSS/theming audit). `prismatic` and `vintage` were the
+   only two of HoloStudioOverlay's five spelled as inline Tailwind gradient classes rather than as
+   rules here, and prismatic was the app's last raw Tailwind-palette colour
+   (`from-cyan-400/40 via-purple-500/40 to-amber-300/40`). Moved so all five foils are one system
+   and the background-size that makes the glare travel is set once per style rather than being
+   passed in by the component. Raw hues on purpose, same as `.holo-rainbow` and `.gold-foil` above:
+   this is printing artwork, not themed chrome, and must not shift when the palette does. */
+.prismatic-foil {
+  background-image: linear-gradient(
+    to top right,
+    hsl(187 86% 53% / 0.4) 0%,
+    hsl(271 91% 65% / 0.4) 50%,
+    hsl(46 97% 65% / 0.4) 100%
+  );
+  background-size: 200% 200%;
+}
+
+.vintage-foil {
+  background-image: radial-gradient(
+    circle at 30% 20%,
+    hsl(45 90% 75% / 0.35),
+    hsl(220 10% 90% / 0.12),
+    transparent 70%
+  );
+  background-size: 200% 200%;
+}
+
+.gold-foil {
+  background-image: linear-gradient(
+    135deg,
+    hsl(46 65% 52% / 0.55) 0%,
+    hsl(50 100% 88% / 0.5) 25%,
+    hsl(43 74% 49% / 0.55) 50%,
+    hsl(50 100% 88% / 0.5) 75%,
+    hsl(46 65% 52% / 0.55) 100%
+  );
+  background-size: 200% 200%;
+}
+
+.studio-sweep { animation: studio-sweep 7s ease-in-out infinite; }
+
+/* Blanket kill-switch instead of the old per-class opt-out list, which new animations kept
+   missing. Near-zero durations rather than `animation: none` so `animationend` still fires --
+   Radix waits on it before unmounting sheets/popovers, and `none` would leave them stuck. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* The blanket rule above only collapses DURATIONS, so on its own it would leave the foil
+     appearing instantly on hover rather than not at all -- a pointer-tracked sheen that snaps in is
+     arguably worse for a motion-sensitive reader than one that fades. Suppressed outright instead.
+     `display: none` rather than `opacity: 0` so the browser stops compositing the layer as well. */
+  .holo-foil {
+    display: none !important;
+  }
+}
+
+/* The float level, for the surfaces that sit above the page. Applied here so popovers/sheets
+   share one shadow instead of each picking its own Tailwind shadow utility. */
+.popover-content,
+.sheet-panel-right,
+.sheet-panel-left {
+  box-shadow: var(--elevation-float);
+}

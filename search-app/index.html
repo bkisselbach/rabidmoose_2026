@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Installable, but deliberately NOT a PWA: there is no service worker and none is wanted
+         here. A demo that serves cached assets after a redeploy is a demo that shows yesterday's
+         index. The manifest exists so an "Add to home screen" lands on a real icon and title
+         instead of a screenshot of the tab. theme_color matches --background so the OS chrome
+         doesn't frame the dark app in white. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#020617" />
+    <meta name="description" content="RabidMoose — Pokémon card marketplace and Pokédex. Live-priced cards and collector knowledge in one federated search. A Coveo proof of concept." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://www.rabidmoose.com/" />
+    <meta property="og:site_name" content="RabidMoose" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="RabidMoose — Pok&eacute;mon Card Marketplace &amp; Pok&eacute;dex" />
+    <meta property="og:description" content="Live-priced Pokémon cards and collector knowledge in one federated search. A Coveo proof of concept." />
+    <meta property="og:url" content="https://www.rabidmoose.com/" />
+    <meta property="og:image" content="https://www.rabidmoose.com/rabidmoose-og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="RabidMoose — Pok&eacute;mon Card Marketplace &amp; Pok&eacute;dex" />
+    <meta name="twitter:description" content="Live-priced Pokémon cards and collector knowledge in one federated search. A Coveo proof of concept." />
+    <meta name="twitter:image" content="https://www.rabidmoose.com/rabidmoose-og.png" />
+    <title>RabidMoose — Pokémon Card Marketplace &amp; Pokédex</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

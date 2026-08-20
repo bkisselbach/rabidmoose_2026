@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    { "source": "/marketplace", "destination": "/search", "permanent": true },
+    { "source": "/product/:id", "destination": "/card/:id", "permanent": true },
+    { "source": "/pokemon/:name", "destination": "/pokedex/:name", "permanent": true },
+    { "source": "/deck-check", "destination": "/advisor", "permanent": true }
+  ],
+  "rewrites": [{ "source": "/((?!assets/|api/|robots.txt|sitemap.xml).*)", "destination": "/index.html" }]
+}

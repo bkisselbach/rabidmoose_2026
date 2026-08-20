@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://search-app-six-fawn.vercel.app/sitemap.xml
